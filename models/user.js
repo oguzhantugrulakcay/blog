@@ -1,14 +1,11 @@
 const mongoose=require('mongoose');
+const Post=require('./post')
 
 const UserSchema=new mongoose.Schema({
-    email:{
-        type:String,
-        lowercase: true,
-        index: true,
-        unique: true
-    },
-    password:String,
-    fullname:String
+  firstName: { type: String, default: null },
+  lastName: { type: String, default: null },
+  email: { type: String, unique: true },
+  password: { type: String }
 })
 
 module.exports=mongoose.model("User",UserSchema)

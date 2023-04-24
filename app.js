@@ -1,5 +1,6 @@
 const express = require('express')
-const posts=require('./routes/posts')
+const myposts=require('./routes/myposts')
+const post=require('./routes/posts')
 const home=require('./routes/home')
 const connectDB=require("./db/connect")
 require("dotenv").config()
@@ -9,8 +10,9 @@ const app = express()
 app.use(express.json())
 
 //route
-app.use('/api/v1/posts',posts)
+app.use('/api/v1/myposts',myposts)
 app.use('/api/v1/home',home)
+app.use('/api/v1/posts',post)
 
 const start = async ()=>{
     try{

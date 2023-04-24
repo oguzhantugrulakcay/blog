@@ -1,16 +1,12 @@
 const express = require('express')
 const router=express.Router();
-
+const auth=require("../middleware/auth")
 const {
     getAllPosts,
-    createPost,
     getPost,
-    updatePost,
-    publishPost,
-    deletePost
 }=require('../controllers/posts')
 
-router.route("/").get(getAllPosts).post(createPost)
-router.route("/:id").get(getPost).patch(updatePost).delete(deletePost).put(publishPost)
+router.get("/",auth,getAllPosts)
+router.route("/:id",auth).get(getPost)
 
 module.exports=router;

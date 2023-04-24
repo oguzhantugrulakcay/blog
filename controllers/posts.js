@@ -1,34 +1,36 @@
-const Post=require("../models/post")
+const Post = require('../models/post');
+const User = require('../models/user');
 
-const getAllPosts=(req,res)=>{
-    res.send('All items')
+const getAllPosts =async (req, res) => {
+    await Post.where({isTask:false}).find()
+    .then((posts)=>{
+        res.json(posts)
+    }).
+    catch(()=>{
+        res.status(404).json({status:false,msg:"Post not found"})
+    })
 }
 
-const createPost=(req,res)=>{
-    res.json(req.body)
+const getPost = async (req, res) => {
+    await Post.findById(req.params.id).
+        then((post) => {
+            User.findById(post.userid).
+            then((user)=>{
+                res.json({
+                    Title: post.title,
+                    Body: post.body,
+                    User: user.firstName + " " + user.lastName,
+                    Likes: post.likes,
+                    IsTask: post.isTask
+                })
+            });
+        }).
+        catch((err) => {
+            res.status(404).json({status:false,msg:"Post not found"})
+        })
 }
 
-const getPost=(req,res)=>{
-    res.json({id:req.params.id})
-}
-
-const updatePost=(req,res)=>{
-    res.send("Post Updated")
-}
-
-const publishPost=(req,res)=>{
-    res.send("Post Published")
-}
-
-const deletePost=(req,res)=>{
-    res.send("Post Deleted")
-}
-
-module.exports={
+module.exports = {
     getAllPosts,
-    createPost,
     getPost,
-    updatePost,
-    publishPost,
-    deletePost
 }
