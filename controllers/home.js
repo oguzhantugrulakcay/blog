@@ -21,7 +21,7 @@ const login = async (req, res) => {
                 res.json({ status: false, msg: "Email or password is not correct, please check it" })
             }
     }).catch((err)=>{
-        console.log(err);
+        console.error(err);
     })
 
 }

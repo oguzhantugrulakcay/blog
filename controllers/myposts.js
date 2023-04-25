@@ -1,15 +1,21 @@
-const Post = require('../models/post');
+const Post = require('../models/post').Post;
 const User = require('../models/user');
 
 const getAllPosts = async (req, res) => {
-    await Post.where({userid:req.user.userid}).find()
-    .then((posts)=>{
-        res.json(posts)
-    })
-    .catch(()=>{
-        console.log(err);
-        res.status(400).json({status:false,msg:"Post list error"});
-    })
+    var vm = [];
+    var posts = await Post.find({ userid: req.user.userid });
+    posts.forEach(post => {
+        vm.push({
+            Id: post._id,
+            Title: post.title,
+            Body: post.body,
+            LikeCount: post.likes.length,
+            IsTask: post.isTask,
+            CommentCount: post.comments.length,
+            CreatedAt: post.createat
+        })
+    });
+    res.json(vm)
 }
 
 const createPost = async (req, res) => {
@@ -34,66 +40,79 @@ const createPost = async (req, res) => {
 }
 
 const getPost = async (req, res) => {
-    var userId=req.user.userid;
-    await Post.where({userid:userId}).findById(req.params.id).
-        then((post) => {
-            User.findById(post.userid).
-            then((user)=>{
-                res.json({
-                    Title: post.title,
-                    Body: post.body,
-                    User: user.firstName + " " + user.lastName,
-                    Likes: post.likes,
-                    IsTask: post.isTask
-                })
-            });
-        }).
-        catch((err) => {
-            res.status(404).json({status:false,msg:"Post not found"})
+    var userId = req.user.userid;
+    const post = await Post.findById(req.params.id).where({ userid: userId });
+    if (post == null) {
+        res.json({ status: false, msg: "Post not found" });
+        return;
+    }
+    var comments=[];
+    for (const comment of post.comments) {
+        var commentUser = await User.findById(comment.userid).select("firstName lastName");
+        comments.push({
+            CommnetId: comment._id,
+            Text: comment.text,
+            Likes: comment.likes.length,
+            CommentUser: commentUser.firstName + " " + commentUser.lastName,
+            CommentUserId: commentUser._id,
+            CreatedAt: comment.createat
+        });
+    };
+    res.json({
+        Id: post._id,
+        Title: post.title,
+        Body: post.body,
+        LikeCount: post.likes.length,
+        IsTask: post.isTask,
+        Comments: comments,
+        CreatedAt: post.createat
+    });
+}
+
+const updatePost = async (req, res) => {
+    var data = req.body;
+    var userId = req.user.userid
+    const post = await Post.findById(req.params.id).where({ userid: userId });
+    if (post == null) {
+        res.json({ status: false, msg: "Post not found" });
+        return;
+    }
+    if (data.Title != "" || data.Title != null) {
+        post.title = data.Title;
+    }
+    if (data.Body != "" || data.Body != null) {
+        post.body = data.Body;
+    }
+    post.save();
+    res.json({ status: true, msg: "Post updated" })
+}
+
+const publishPost = async (req, res) => {
+    var userId = req.user.userid
+    const post = await Post.findById(req.params.id).where({ userid: userId });
+    if (post == null) {
+        res.json({ status: false, msg: "Post not found" });
+        return
+    }
+    var newStatus = !post.isTask;
+    post.isTask = newStatus;
+    post.save();
+    if (newStatus) {
+        res.json({ status: true, msg: "Post unpublished" })
+    } else {
+        res.json({ status: true, msg: "Post published" })
+    }
+}
+
+const deletePost = async (req, res) => {
+    var userId = req.user.userid
+    await Post.where({ userid: userId }).findById(req.params.id).deleteOne()
+        .then(() => {
+            res.json({ status: true, msg: "Post deleted" })
+        }).catch((err) => {
+            console.log(err);
+            res.status(400).json({ status: false, msg: "Post delete error" });
         })
-}
-
-const updatePost =async (req, res) => {
-    var data=req.body;
-    var userId=req.user.userid
-    await Post.where({userid:userId}).findById(req.params.id).updateOne({title:data.Title,body:data.Body}).
-    then(()=>{
-        res.json({status:true,msg:"Post updated"})
-    }).
-    catch((err)=>{
-        console.log(err);
-        res.status(400).json({status:false,msg:"Post update error"});
-    })
-}
-
-const publishPost =async (req, res) => {
-    var data=req.body;
-    var userId=req.user.userid
-    await Post.where({userid:userId}).findById(req.params.id).updateOne({isTask:data.IsTask}).
-    then(()=>{
-        if(data.IsTask){
-            res.json({status:true,msg:"Post unpublished"})
-        }else{
-            res.json({status:true,msg:"Post published"})
-        }
-        
-    }).
-    catch((err)=>{
-        console.log(err);
-        res.status(400).json({status:false,msg:"Post update error"});
-    })
-}
-
-const deletePost =async (req, res) => {
-    var userId=req.user.userid
-    await Post.where({userid:userId}).findById(req.params.id).deleteOne()
-    .then(()=>{
-        res.json({status:true,msg:"Post deleted"})
-    }).catch((err)=>{
-        console.log(err);
-        res.status(400).json({status:false,msg:"Post delete error"});
-    })
-    
 }
 
 module.exports = {

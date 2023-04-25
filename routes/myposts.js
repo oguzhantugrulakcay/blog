@@ -10,7 +10,7 @@ const {
     deletePost
 }=require('../controllers/myposts')
 
-router.get("/",auth).get(getAllPosts).post(createPost)
-router.route("/:id",auth).get(getPost).post(updatePost).delete(deletePost).put(publishPost)
+router.route("/").get(auth,getAllPosts).post(auth,createPost)
+router.route("/:id").get(auth,getPost).post(auth,updatePost).delete(auth,deletePost).put(auth,publishPost)
 
 module.exports=router;
