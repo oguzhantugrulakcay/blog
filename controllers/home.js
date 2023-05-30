@@ -1,29 +1,30 @@
-const User = require("../models/user");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken")
+const dbContext=require("../db/connect")
 
 const login = async (req, res) => {
-    await User.findOne({email:req.body.Email})
-    .then((user)=>{
-        if(user==null){
-            res.json({ status: false, msg: "Email or password is not correct, please check it"});
-            return
-        }
-        if (bcrypt.compare(req.body.Password, user.password)) {
-                var token = jwt.sign(
-                    { userid: user._id, email: user.email },
-                    process.env.SECRET_KEY,
-                    {
-                        expiresIn: "2h",
-                    })
-                res.json({ status: true, msg: "Login success", val: token })
-            } else {
-                res.json({ status: false, msg: "Email or password is not correct, please check it" })
+    dbContext.query(`Select * from users where email='${req.body.Email}'`,(err,dbRes)=>{
+        if(err!=null){
+            console.log(`DB query error:${err.message}`)
+            res.json({ status: false, msg: err.message });
+        }else{
+            if(dbRes.rowCount!=1){
+                res.json({ status: false, msg: "Email or password is not correct, please check it"});  
+            }else{
+                if (bcrypt.compare(req.body.Password, dbRes.rows[0].password)) {
+                    var token = jwt.sign(
+                        { userid: dbRes.rows[0].user_id, email: dbRes.rows[0].email },
+                        process.env.SECRET_KEY,
+                        {
+                            expiresIn: "2h",
+                        })
+                    res.json({ status: true, msg: "Login success", val: token })
+                } else {
+                    res.json({ status: false, msg: "Email or password is not correct, please check it" })
+                }
             }
-    }).catch((err)=>{
-        console.error(err);
+        }
     })
-
 }
 
 const register = async (req, res) => {
@@ -44,8 +45,12 @@ const register = async (req, res) => {
         res.json({ status: false, msg: "Passwords are not same" })
     }
     var hashPassword = await bcrypt.hash(user.Password, 10);
-    User.create({ email: user.Email, firstName: user.FirstName, lastName: user.LastName, password: hashPassword})
-        .then((justUser) => {
+    dbContext.query(`Insert Into users (email,first_name,last_name,password) values ('${user.Email}','${user.FirstName}','${user.LastName}','${hashPassword}') RETURNING *`,(err,dbRes)=>{
+        if(err!=null){
+            console.log(`DB query error:${err.message}`)
+            res.json({ status: false, msg: err.message });
+        }else{
+            var justUser=dbRes.rows[0];
             var token = jwt.sign(
                 { userid: justUser._id, email: justUser.email },
                 process.env.SECRET_KEY,
@@ -53,18 +58,10 @@ const register = async (req, res) => {
                     expiresIn: "2h",
                 }
             );
-            // save user token
-            user.token = token;
-            res.json({ status: true, msg: "Kullanıcı oluşturuldu.", val: justUser._id })
+            res.json({ status: true, msg: "Kullanıcı oluşturuldu.", val: token })
         }
-        )
-        .catch((err) => {
-            if (err.code === 11000 && err.keyPattern && err.keyPattern.email === 1) {
-                res.json({ status: false, msg: "Bu e-posta adresi zaten kullanılıyor." });
-            } else {
-                res.status(500).json({ status: false, msg: "Bu e-posta adresi zaten kullanılıyor.", val: err.message });
-            }
-        })
+    })
+    
 };
 
 const updateProfile=async (req,res)=>{
@@ -85,15 +82,12 @@ const updateProfile=async (req,res)=>{
         res.json({ status: false, msg: "Passwords are not same" })
     }
     var hashPassword = await bcrypt.hash(data.Password, 10);
-    await User.findById(req.user.userid).updateOne({firstName:data.FirstName,lastName:data.LastName,password:hashPassword,email:data.Email}).
-    then(()=>{
-        res.json({status:true,msg:"Profile updated"})
-    })
-    .catch((err) => {
-        if (err.code === 11000 && err.keyPattern && err.keyPattern.email === 1) {
-            res.json({ status: false, msg: "Bu e-posta adresi zaten kullanılıyor." });
-        } else {
-            res.status(400).json({ status: false, msg: "Profile update error"});
+    dbContext.query(`Update users set email='${data.Email}',first_name='${data.FirstName}',last_name='${data.LastName}',password='${hashPassword}' where user_id=${req.user.userid} RETURNING *`,(err,dbRes)=>{
+        if(err!=null){
+            console.log(`DB query error:${err.message}`)
+            res.json({ status: false, msg: err.message });
+        }else{
+            res.json({status:true,msg:"Profile updated"})
         }
     })
 };
